@@ -41,3 +41,4 @@ api_keys.txt
 .coverage
 coverage.xml
 htmlcov/
+.pre-commit-cache/

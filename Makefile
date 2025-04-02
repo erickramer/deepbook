@@ -1,16 +1,30 @@
 # Ensure correct Python executable is used
 VENV = test_venv
 PYTHON = $(VENV)/bin/python
-PIP = $(VENV)/bin/pip
 PYTEST = $(VENV)/bin/pytest
+
+# Check if uv is available, otherwise use pip
+ifeq ($(shell which uv),)
+  $(info uv not found, using pip)
+  INSTALLER = $(VENV)/bin/pip install -r
+else
+  $(info using uv for faster package installation)
+  INSTALLER = uv pip install --python $(VENV)/bin/python -r
+endif
 
 run:
 	streamlit run app/__init__.py
 
 venv:
 	python -m venv $(VENV)
-	$(PIP) install -r requirements.txt
-	$(PIP) install -r requirements-dev.txt
+	$(INSTALLER) requirements.txt
+	$(INSTALLER) requirements-dev.txt
+
+hooks: venv
+	mkdir -p .pre-commit-cache
+	cp scripts/pre-commit.sh .git/hooks/pre-commit
+	chmod +x .git/hooks/pre-commit
+	@echo "Pre-commit hooks installed successfully."
 
 test: venv
 	$(PYTEST)

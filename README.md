@@ -41,8 +41,12 @@ cd deepbook
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Install dependencies (standard method)
 pip install -r requirements.txt
+
+# OR install with uv for much faster installation (recommended)
+# Install uv first if you don't have it: curl -LsSf https://astral.sh/uv/install.sh | sh
+uv pip install -r requirements.txt
 
 # Run the application
 make run
@@ -64,7 +68,19 @@ make run
 - `app/contants.py`: Configuration settings
 - `tests/`: Test suite for the application
 
-## Testing
+## Development
+
+### Setting up Pre-commit Hooks
+
+To ensure code quality before each commit, install the pre-commit hooks:
+
+```bash
+make hooks
+```
+
+This will automatically run linters and formatters on your code before each commit.
+
+### Testing and Linting
 
 The project includes a comprehensive test suite to ensure functionality and reliability:
 

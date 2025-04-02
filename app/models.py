@@ -5,62 +5,92 @@ This module defines the structure of the story components using Pydantic models.
 Each model represents a different part of the children's book.
 """
 
-from pydantic import BaseModel, Field
-from langchain.prompts import PromptTemplate
-from langchain.output_parsers import PydanticOutputParser
 from typing import List, Optional
-from app.prompts import TEMPLATE, TEXT_TEMPLATE, IMG_TEMPLATE
+
+from langchain.output_parsers import PydanticOutputParser
+from langchain.prompts import PromptTemplate
+from pydantic import BaseModel, Field
+
+from app.prompts import IMG_TEMPLATE, TEMPLATE, TEXT_TEMPLATE
+
 
 class Model(BaseModel):
     """Base model class that all other models inherit from."""
+
     pass
+
 
 class MetaDataModel(Model):
     """Model for storing book metadata information."""
-    title: str = Field(description="the title of the children's book",)
+
+    title: str = Field(
+        description="the title of the children's book",
+    )
     author: str = Field(description="the whimsical and fantasical name for the author")
     year: int = Field(description="the year the book was published in the past or future!")
     themes: List[str] = Field(description="themes touched upon by the book")
     location: str = Field(description="the place where the majority of the story takes place")
 
+
 class ChapterOutlineModel(Model):
     """Model for individual chapter outline information."""
+
     chapter: int = Field(description="The number of the chapter")
     title: str = Field(description="The title of the chapter")
     synopsis: str = Field(description="1-2 sentence summary of the chapter")
 
+
 class BookOutlineModel(Model):
     """Model for the overall book outline containing plot structure and chapter outlines."""
+
     synopsis: str = Field(description="1-2 sentence summary of the book")
-    conflict: str = Field(description="The specific conflict that must be resolved or obstacle that must be overcome")
-    resolution: str = Field(description="The specific way the conflict is resolved (who, how and when)")
-    outlines: List[ChapterOutlineModel] = Field(description="List of outlines for individual chapters")
+    conflict: str = Field(
+        description="The specific conflict that must be resolved or obstacle that must be overcome"
+    )
+    resolution: str = Field(
+        description="The specific way the conflict is resolved (who, how and when)"
+    )
+    outlines: List[ChapterOutlineModel] = Field(
+        description="List of outlines for individual chapters"
+    )
+
 
 class CharacterModel(Model):
     """Model for storing individual character information."""
+
     name: str = Field(description="name of the character")
     description: str = Field(description="physical description of the character")
     personality: str = Field(description="a one sentence biography of the character")
 
+
 class CharactersModel(Model):
     """Model for storing all characters in the story."""
+
     characters: List[CharacterModel]
+
 
 class ChapterTextModel(Model):
     """Model for storing the full text content of a single chapter."""
+
     chapter: int = Field("")
-    text: str = Field("The text for the chapter. This is the text that is read to children. It should read like a children's book and follow the synopsis in the outline")
+    text: str = Field(
+        "The text for the chapter. This is the text that is read to children. It should read like a children's book and follow the synopsis in the outline"
+    )
+
 
 class FullTextModel(Model):
     """Model for storing the full text content of all chapters in the book."""
+
     chapters: List[ChapterTextModel] = []
+
 
 class Story(Model):
     """Main model that orchestrates the entire story generation process.
-    
+
     Contains all components of the children's book, including metadata,
     characters, outline, and full text content.
     """
+
     prompt: str = Field(description="A human entered prompt to start the story generation")
     metadata: Optional[MetaDataModel]
     characters: Optional[CharactersModel]
@@ -69,35 +99,31 @@ class Story(Model):
 
     def _run_llm(self, llm, model: type[Model], name, template=TEMPLATE):
         """Internal helper method to run a language model with a specific prompt template.
-        
+
         Args:
             llm: The language model to use for generation
             model: The Pydantic model class to parse the output into
             name: The name of the field being generated
             template: The prompt template to use (defaults to TEMPLATE)
-            
+
         Returns:
             An instance of the specified model populated with the generated content
         """
         parser = PydanticOutputParser(pydantic_object=model)
         prompt = PromptTemplate(
-            template=template, 
-            input_variables=["story"], 
-            partial_variables={
-                "instructions": parser.get_format_instructions(), 
-                "name": name
-            }
+            template=template,
+            input_variables=["story"],
+            partial_variables={"instructions": parser.get_format_instructions(), "name": name},
         )
         output = llm(prompt.format_prompt(story=self.json()).to_string())
         return parser.parse(output)
 
-
     def add_metadata(self, llm):
         """Generate metadata for the story including title, author, and themes.
-        
+
         Args:
             llm: The language model to use for generation
-            
+
         Returns:
             Self for method chaining
         """
@@ -106,10 +132,10 @@ class Story(Model):
 
     def add_characters(self, llm):
         """Generate character definitions for the story.
-        
+
         Args:
             llm: The language model to use for generation
-            
+
         Returns:
             Self for method chaining
         """
@@ -118,10 +144,10 @@ class Story(Model):
 
     def add_outline(self, llm):
         """Generate a story outline including chapter structure.
-        
+
         Args:
             llm: The language model to use for generation
-            
+
         Returns:
             Self for method chaining
         """
@@ -130,13 +156,13 @@ class Story(Model):
 
     def add_text(self, llm):
         """Generate the full text content for each chapter in the story.
-        
+
         Iterates through each chapter outline and generates the complete
         text content for that chapter.
-        
+
         Args:
             llm: The language model to use for generation
-            
+
         Returns:
             Self for method chaining
         """
@@ -151,31 +177,31 @@ class Story(Model):
 
 def generate_image(openai, llm, story: Story, i: int):
     """Generate a character illustration using OpenAI's image generation.
-    
+
     Uses a language model to create a descriptive prompt based on the character,
     then passes that prompt to OpenAI's image generation API.
-    
+
     Args:
         openai: The OpenAI client for making API calls
         llm: The language model to use for prompt generation
         story: The Story object containing character information
         i: The index of the character to generate an image for
-        
+
     Returns:
         Tuple containing (generated prompt text, OpenAI image response)
     """
     prompt = PromptTemplate(
-            template=IMG_TEMPLATE, 
-            input_variables=["story", "i", "character"], 
+        template=IMG_TEMPLATE,
+        input_variables=["story", "i", "character"],
     )
 
-    s = prompt.format_prompt(story=story.json(), i=i, character=story.characters.characters[i]).to_string()
+    s = prompt.format_prompt(
+        story=story.json(), i=i, character=story.characters.characters[i]
+    ).to_string()
     res = llm(s)
 
     response = openai.Image.create(
-        prompt=f"A children's book illustration. {res}",
-        n=1,
-        size="512x512"
+        prompt=f"A children's book illustration. {res}", n=1, size="512x512"
     )
 
     return res, response

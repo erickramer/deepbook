@@ -4,16 +4,17 @@ Main application module for DeepBook - a children's storybook generator.
 This module provides the Streamlit interface and coordinates the story generation process.
 """
 
-import streamlit as st 
 import openai
+import streamlit as st
 from langchain.llms import OpenAI
-from app.models import Story, CharacterModel, generate_image
+
 from app.contants import MODEL_NAME, TEMPERATURE
+from app.models import CharacterModel, Story, generate_image
 
 
 class Layout:
     """Manages the Streamlit UI layout and rendering of story elements.
-    
+
     This class creates containers for each section of the storybook and
     provides methods to add content to these sections.
     """
@@ -27,17 +28,16 @@ class Layout:
         self.appendix = st.container()
 
         self.character = None
-        self.character_img_cols= []
+        self.character_img_cols = []
 
         self.characters.write("## Starring")
         self.outline.write("## Contents")
-        self.text.write("## Story")       
+        self.text.write("## Story")
         self.appendix.write("## Logs")
-
 
     def add_log(self, story):
         """Add JSON representation of the story to the logs section.
-        
+
         Args:
             story: The Story object to display in the logs
         """
@@ -46,7 +46,7 @@ class Layout:
 
     def add_metadata(self, story):
         """Add book title and author to the header section.
-        
+
         Args:
             story: The Story object containing metadata
         """
@@ -56,38 +56,38 @@ class Layout:
 
     def add_character(self, i, character: CharacterModel):
         """Add a single character to the characters section.
-        
+
         Creates a two-column layout with space for the character image
         and the character details.
-        
+
         Args:
             i: The index of the character
             character: The CharacterModel object to display
         """
-        col1, col2 = self.character[i].columns([1,2])
+        col1, col2 = self.character[i].columns([1, 2])
         self.character_img_cols.append(col1)
         col2.write(f"## {character.name}")
         col2.write(character.personality)
 
     def add_characters(self, story: Story):
         """Add all characters to the characters section.
-        
+
         Creates a container for each character and adds them to the UI.
-        
+
         Args:
             story: The Story object containing characters
         """
         self.character = [self.characters.container() for _ in story.characters.characters]
         for i, character in enumerate(story.characters.characters):
             self.add_character(i, character)
-    
-        self.add_log(story) 
+
+        self.add_log(story)
 
     def add_outline(self, story: Story):
         """Add chapter outlines to the contents section.
-        
+
         Displays a list of chapter titles in the table of contents.
-        
+
         Args:
             story: The Story object containing the outline
         """
@@ -97,9 +97,9 @@ class Layout:
 
     def add_text(self, story: Story):
         """Add full text content for each chapter to the story section.
-        
+
         Displays chapter titles and full text content for each chapter.
-        
+
         Args:
             story: The Story object containing the text
         """
@@ -110,27 +110,29 @@ class Layout:
 
     def add_character_img(self, i, url):
         """Add a character illustration to the characters section.
-        
+
         Args:
             i: The index of the character
             url: The URL of the generated image
         """
         self.character_img_cols[i].image(url)
 
+
 st.set_page_config(page_title="📚 Childrens' storybook generator")
 st.title("📚 Childrens' storybook generator")
 key = st.text_input(label="Enter your OpenAI API key")
-if key: 
+if key:
     openai.api_key = key
-    llm = OpenAI(model_name=MODEL_NAME, temperature=TEMPERATURE, openai_api_key=key, max_tokens=2048)
+    llm = OpenAI(
+        model_name=MODEL_NAME, temperature=TEMPERATURE, openai_api_key=key, max_tokens=2048
+    )
 
     prompt = st.text_input(label="Enter a prompt for a childrens' book")
     if prompt:
-
         layout = Layout()
         story = Story(prompt=prompt)
 
-        ## metadata 
+        ## metadata
         story.add_metadata(llm)
         layout.add_metadata(story)
 
@@ -145,7 +147,7 @@ if key:
             layout.appendix.write(prompt)
             layout.appendix.code(response, language="json")
 
-        ## outline 
+        ## outline
         story.add_outline(llm)
         layout.add_outline(story)
 
