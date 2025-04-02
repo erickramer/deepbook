@@ -118,39 +118,45 @@ class Layout:
         self.character_img_cols[i].image(url)
 
 
-st.set_page_config(page_title="📚 Childrens' storybook generator")
-st.title("📚 Childrens' storybook generator")
-key = st.text_input(label="Enter your OpenAI API key")
-if key:
-    openai.api_key = key
-    llm = OpenAI(
-        model_name=MODEL_NAME, temperature=TEMPERATURE, openai_api_key=key, max_tokens=2048
-    )
+def run_app():
+    """Main entry point for the DeepBook application."""
+    st.set_page_config(page_title="📚 Childrens' storybook generator")
+    st.title("📚 Childrens' storybook generator")
+    key = st.text_input(label="Enter your OpenAI API key")
+    if key:
+        openai.api_key = key
+        llm = OpenAI(
+            model_name=MODEL_NAME, temperature=TEMPERATURE, openai_api_key=key, max_tokens=2048
+        )
 
-    prompt = st.text_input(label="Enter a prompt for a childrens' book")
-    if prompt:
-        layout = Layout()
-        story = Story(prompt=prompt)
+        prompt = st.text_input(label="Enter a prompt for a childrens' book")
+        if prompt:
+            layout = Layout()
+            story = Story(prompt=prompt)
 
-        ## metadata
-        story.add_metadata(llm)
-        layout.add_metadata(story)
+            # metadata
+            story.add_metadata(llm)
+            layout.add_metadata(story)
 
-        ## characters
-        story.add_characters(llm)
-        layout.add_characters(story)
-        for i, _ in enumerate(story.characters.characters):
-            prompt, response = generate_image(openai, llm, story, i)
-            layout.add_character_img(i, response.data[0].url)
+            # characters
+            story.add_characters(llm)
+            layout.add_characters(story)
+            for i, _ in enumerate(story.characters.characters):
+                prompt, response = generate_image(openai, llm, story, i)
+                layout.add_character_img(i, response.data[0].url)
 
-            layout.appendix.write("Character image: ")
-            layout.appendix.write(prompt)
-            layout.appendix.code(response, language="json")
+                layout.appendix.write("Character image: ")
+                layout.appendix.write(prompt)
+                layout.appendix.code(response, language="json")
 
-        ## outline
-        story.add_outline(llm)
-        layout.add_outline(story)
+            # outline
+            story.add_outline(llm)
+            layout.add_outline(story)
 
-        ## text
-        story.add_text(llm)
-        layout.add_text(story)
+            # text
+            story.add_text(llm)
+            layout.add_text(story)
+
+
+if __name__ == "__main__":
+    run_app()

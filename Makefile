@@ -12,8 +12,11 @@ else
   INSTALLER = uv pip install --python $(VENV)/bin/python -r
 endif
 
-run:
-	streamlit run app/__init__.py
+run: venv install-dev
+	$(VENV)/bin/streamlit run deepbook.py
+
+install-dev: venv
+	$(VENV)/bin/pip install -e .
 
 venv:
 	python -m venv $(VENV)
