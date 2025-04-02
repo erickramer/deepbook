@@ -24,6 +24,7 @@ class Layout:
     def __init__(self):
         """Initialize the layout containers and section headers."""
         self.header = st.container()
+        self.status = st.container()  # Container for spinner, just below the title
         self.characters = st.container()
         self.outline = st.container()
         self.text = st.container()
@@ -54,6 +55,7 @@ class Layout:
         """
         self.header.write(f"# {story.metadata.title}")
         self.header.write(f"By {story.metadata.author}")
+        # Status container is positioned here, just below the title
         self.add_log(story)
 
     def add_character(self, i, character: CharacterModel):
@@ -123,6 +125,7 @@ class Layout:
 def run_app():
     """Main entry point for the DeepBook application."""
     st.set_page_config(page_title="📚 Childrens' storybook generator")
+
     st.title("📚 Childrens' storybook generator")
     key = st.text_input(label="Enter your OpenAI API key")
     if key:
@@ -133,34 +136,44 @@ def run_app():
 
         prompt = st.text_input(label="Enter a prompt for a childrens' book")
         if prompt:
+            # Let's create the layout only after we have a prompt
             layout = Layout()
             story = Story(prompt=prompt)
 
             # metadata - generate asynchronously
-            with st.spinner("Generating story metadata..."):
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                await_story = loop.run_until_complete(story.add_metadata_async(llm))
-                loop.close()
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            await_story = loop.run_until_complete(story.add_metadata_async(llm))
+            loop.close()
 
+            # Add metadata first so the title is displayed
             layout.add_metadata(story)
 
+            # Place spinner below the title
+            status_text = layout.status.empty()
+
             # characters - generate asynchronously
-            with st.spinner("Generating characters..."):
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                await_story = loop.run_until_complete(story.add_characters_async(llm))
-                loop.close()
+            with layout.status:
+                with st.spinner("Generating characters..."):
+                    status_text.text("Generating characters...")
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    await_story = loop.run_until_complete(story.add_characters_async(llm))
+                    loop.close()
 
             layout.add_characters(story)
 
             # Generate all character images concurrently
-            with st.spinner("Generating character illustrations..."):
-                # Run the async function inside an asyncio event loop
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                images = loop.run_until_complete(generate_all_character_images(openai, llm, story))
-                loop.close()
+            with layout.status:
+                with st.spinner("Generating character illustrations..."):
+                    status_text.text("Generating character illustrations...")
+                    # Run the async function inside an asyncio event loop
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    images = loop.run_until_complete(
+                        generate_all_character_images(openai, llm, story)
+                    )
+                    loop.close()
 
             # Display all generated images
             for i, prompt, response in images:
@@ -170,22 +183,29 @@ def run_app():
                 layout.appendix.code(response, language="json")
 
             # outline - generate asynchronously
-            with st.spinner("Generating story outline..."):
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                await_story = loop.run_until_complete(story.add_outline_async(llm))
-                loop.close()
+            with layout.status:
+                with st.spinner("Generating story outline..."):
+                    status_text.text("Generating story outline...")
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    await_story = loop.run_until_complete(story.add_outline_async(llm))
+                    loop.close()
 
             layout.add_outline(story)
 
             # text - generate all chapters in parallel
-            with st.spinner("Generating story text..."):
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                await_story = loop.run_until_complete(story.add_text_async(llm))
-                loop.close()
+            with layout.status:
+                with st.spinner("Generating story text..."):
+                    status_text.text("Generating story text...")
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    await_story = loop.run_until_complete(story.add_text_async(llm))
+                    loop.close()
 
             layout.add_text(story)
+
+            # Show completion message
+            status_text.success("✅ Story generation complete!")
 
 
 if __name__ == "__main__":
