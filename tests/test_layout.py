@@ -90,44 +90,31 @@ class TestLayout(unittest.TestCase):
         # Verify that containers were created
         self.assertEqual(
             self.mock_st_container.call_count, 5
-        )  # header, characters, outline, text, appendix
+        )  # status, header, characters, outline, text
 
-        # Verify that section headers were written
-        self.mock_container.write.assert_has_calls(
-            [call("## Starring"), call("## Contents"), call("## Story"), call("## Logs")],
-            any_order=True,
-        )
+        # Headers are now added in each add_* method, not in init
 
-    def test_add_log(self):
-        """Test adding logs to the appendix section."""
-        self.layout.add_log(self.story)
-
-        # Verify that the appendix container's write and code methods were called
-        self.mock_container.write.assert_any_call("\n")
-        self.mock_container.code.assert_called_once()
+    # test_add_log removed since we removed that functionality
 
     def test_add_metadata(self):
         """Test adding metadata to the header section."""
-        self.layout.add_log = MagicMock()  # Mock the add_log method
-
         self.layout.add_metadata(self.story)
 
         # Verify that the header container's write method was called with the title and author
         self.mock_container.write.assert_has_calls([call("# Test Title"), call("By Test Author")])
 
-        # Verify that add_log was called
-        self.layout.add_log.assert_called_once_with(self.story)
-
     def test_add_characters(self):
         """Test adding characters to the characters section."""
-        # Mock the add_character and add_log methods
+        # Mock the add_character method
         self.layout.add_character = MagicMock()
-        self.layout.add_log = MagicMock()
 
         # Setup container for character containers
         self.layout.characters.container = MagicMock(return_value=MagicMock())
 
         self.layout.add_characters(self.story)
+
+        # Verify that section header is added
+        self.mock_container.write.assert_any_call("## Starring")
 
         # Verify that add_character was called for each character
         self.layout.add_character.assert_has_calls(
@@ -137,41 +124,30 @@ class TestLayout(unittest.TestCase):
             ]
         )
 
-        # Verify that add_log was called
-        self.layout.add_log.assert_called_once_with(self.story)
-
     def test_add_outline(self):
         """Test adding outline to the contents section."""
-        self.layout.add_log = MagicMock()  # Mock the add_log method
-
         self.layout.add_outline(self.story)
 
-        # Verify that the outline container's write method was called for each chapter outline
-        self.mock_container.write.assert_has_calls(
-            [call("**Chapter 1**: Chapter 1"), call("**Chapter 2**: Chapter 2")]
-        )
+        # Verify that the section header was added
+        self.mock_container.write.assert_any_call("## Contents")
 
-        # Verify that add_log was called
-        self.layout.add_log.assert_called_once_with(self.story)
+        # Verify that markdown is called for each chapter outline with links
+        # Since we're using markdown links now, we test differently
+        self.mock_container.markdown.assert_called()
 
     def test_add_text(self):
         """Test adding text to the story section."""
-        self.layout.add_log = MagicMock()  # Mock the add_log method
-
         self.layout.add_text(self.story)
 
-        # Verify that the text container's write method was called for each chapter
-        self.mock_container.write.assert_has_calls(
-            [
-                call("### Chapter 1: Chapter 1"),
-                call("Chapter 1 text"),
-                call("### Chapter 2: Chapter 2"),
-                call("Chapter 2 text"),
-            ]
-        )
+        # Verify that the section header was added
+        self.mock_container.write.assert_any_call("## Story")
 
-        # Verify that add_log was called for each chapter
-        self.assertEqual(self.layout.add_log.call_count, 2)
+        # Verify that markdown is used for chapter headings with IDs
+        self.mock_container.markdown.assert_called()
+
+        # Verify that the text container's write method was called for each chapter's content
+        self.mock_container.write.assert_any_call("Chapter 1 text")
+        self.mock_container.write.assert_any_call("Chapter 2 text")
 
     def test_add_character_img(self):
         """Test adding character images."""
