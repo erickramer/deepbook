@@ -17,14 +17,10 @@ jobs:
       with:
         python-version: '3.9'
 
-    - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
     - name: Install linting dependencies
       run: |
-        uv pip install flake8 black isort
+        python -m pip install --upgrade pip
+        pip install flake8 black isort
 
     - name: Lint with flake8
       run: |
@@ -54,15 +50,11 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
 
-    - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
     - name: Install dependencies
       run: |
-        uv pip install -r requirements.txt
-        uv pip install -r requirements-dev.txt
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
 
     - name: Run tests
       run: |
