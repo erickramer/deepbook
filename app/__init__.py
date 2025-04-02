@@ -84,7 +84,10 @@ class Layout:
         self.outline.write("## Contents")
 
         for outline in story.outline.outlines:
-            self.outline.write(f"**Chapter {outline.chapter}**: {outline.title}")
+            # Create a link to the corresponding chapter using an anchor
+            self.outline.markdown(
+                f"**Chapter {outline.chapter}**: [{outline.title}](#chapter-{outline.chapter}-{outline.title.lower().replace(' ', '-')})"
+            )
 
     def add_text(self, story: Story):
         """Add full text content for each chapter to the story section.
@@ -98,7 +101,13 @@ class Layout:
         self.text.write("## Story")
 
         for i, chapter in enumerate(story.text.chapters):
-            self.text.write(f"### Chapter {chapter.chapter}: {story.outline.outlines[i].title}")
+            # Create chapter heading with an ID that matches the link in the contents
+            outline = story.outline.outlines[i]
+            chapter_id = f"chapter-{outline.chapter}-{outline.title.lower().replace(' ', '-')}"
+            self.text.markdown(
+                f'<h3 id="{chapter_id}">Chapter {chapter.chapter}: {outline.title}</h3>',
+                unsafe_allow_html=True,
+            )
             self.text.write(chapter.text)
 
     def add_character_img(self, i, url):
