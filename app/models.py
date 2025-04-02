@@ -250,10 +250,16 @@ class Story(Model):
 
 
 async def generate_image_async(openai, llm, story: Story, i: int):
-    """Generate a character illustration using OpenAI's image generation (asynchronously).
+    """Generate a high-quality character illustration using OpenAI's DALL-E 3 (asynchronously).
 
-    Uses a language model to create a descriptive prompt based on the character,
-    then passes that prompt to OpenAI's image generation API.
+    Uses a language model to create a detailed descriptive prompt based on the character,
+    then passes that prompt to OpenAI's DALL-E 3 image generation API with enhanced styling.
+
+    The function generates illustrations with:
+    - Consistent children's book illustration style
+    - Whimsical, colorful watercolor aesthetic
+    - Detailed backgrounds and gentle color palette
+    - High-definition 1024x1024 resolution
 
     Args:
         openai: The OpenAI client for making API calls
@@ -274,8 +280,26 @@ async def generate_image_async(openai, llm, story: Story, i: int):
     ).to_string()
     res = llm(s)
 
+    # Style descriptors for consistent, high-quality children's book illustrations
+    style_descriptors = [
+        "whimsical",
+        "colorful",
+        "watercolor style",
+        "children's book illustration",
+        "cute and friendly",
+        "detailed background",
+        "gentle color palette",
+    ]
+
+    style_text = ", ".join(style_descriptors)
+
+    # Use DALL-E 3 with larger size and HD quality
     response = await openai.Image.acreate(
-        prompt=f"A children's book illustration. {res}", n=1, size="512x512"
+        prompt=f"A children's book illustration in {style_text} style. {res}",
+        n=1,
+        size="1024x1024",
+        model="dall-e-3",
+        quality="hd",
     )
 
     return i, res, response

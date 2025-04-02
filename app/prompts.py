@@ -37,8 +37,19 @@ the following JSON.
 
 {story}
 
-Please write a prompt for image generation for character {i} based on their
-physical description and personality.
+Please write a detailed visual description for character {i} that will be used for image generation.
+I need you to create a rich, detailed description that includes:
+
+1. Their physical appearance (body shape, size, species if not human)
+2. Their facial features and expression
+3. Their clothing and accessories
+4. Their pose or action they might be doing
+5. Any key background elements that represent their world
+6. The mood and atmosphere of the image
+
+Make this description vivid and specific, mentioning colors, textures, and small details.
+Do not include any disclaimers, explanations, or notes about the image generation process.
+Only provide the descriptive prompt itself.
 
 Again this character is described by the following JSON:
 
