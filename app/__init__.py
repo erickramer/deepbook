@@ -165,20 +165,27 @@ def run_app():
 
             layout.add_characters(story)
 
-            # Generate all character images concurrently
-            with layout.status:
-                with st.spinner("Generating character illustrations..."):
-                    # Run the async function inside an asyncio event loop
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    images = loop.run_until_complete(
-                        generate_all_character_images(openai, llm, story)
-                    )
-                    loop.close()
+            # Start image generation in a separate thread
+            import threading
 
-            # Display all generated images
-            for i, prompt, response in images:
-                layout.add_character_img(i, response["data"][0]["url"])
+            # Create a placeholder for the image results
+            image_results = []
+
+            def generate_images_thread():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                images = loop.run_until_complete(generate_all_character_images(openai, llm, story))
+                loop.close()
+                # Store results for later use
+                image_results.extend(images)
+
+            # Start the thread for image generation
+            image_thread = threading.Thread(target=generate_images_thread)
+            image_thread.start()
+
+            # Show a status message but don't block
+            image_status = layout.status.empty()
+            image_status.info("Generating character illustrations in the background...")
 
             # outline - generate asynchronously
             with layout.status:
@@ -199,6 +206,18 @@ def run_app():
                     loop.close()
 
             layout.add_text(story)
+
+            # Now wait for image generation to complete if it hasn't already
+            with layout.status:
+                with st.spinner("Finishing character illustrations..."):
+                    image_thread.join()  # Wait for the thread to finish
+
+            # Clear the image status message
+            image_status.empty()
+
+            # Display all generated images
+            for i, prompt, response in image_results:
+                layout.add_character_img(i, response["data"][0]["url"])
 
             # Show completion message
             with layout.status:
