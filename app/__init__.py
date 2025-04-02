@@ -114,8 +114,13 @@ def run_app():
     title_container = st.empty()
     title_container.title("📚 Childrens' storybook generator")
 
-    key = st.text_input(label="Enter your OpenAI API key")
+    # Create a container for the API key input so we can hide it later
+    key_container = st.empty()
+    key = key_container.text_input(label="Enter your OpenAI API key")
     if key:
+        # Hide the API key input after submission
+        key_container.empty()
+
         openai.api_key = key
         llm = OpenAI(
             model_name=MODEL_NAME, temperature=TEMPERATURE, openai_api_key=key, max_tokens=2048
