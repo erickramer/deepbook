@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import streamlit as st
 
 from app import Layout
-from app.models import Story, generate_image
+from app.models import Story
 
 
 class TestAppIntegration(unittest.TestCase):
@@ -77,7 +77,8 @@ class TestAppIntegration(unittest.TestCase):
 
         # Mock generate_image function
         patcher = patch(
-            "app.generate_image", return_value=("test_prompt", {"data": [{"url": "test_url"}]})
+            "app.models.generate_image",
+            return_value=("test_prompt", {"data": [{"url": "test_url"}]}),
         )
         self.addCleanup(patcher.stop)
         self.mock_generate_image = patcher.start()
@@ -140,7 +141,7 @@ class TestAppIntegration(unittest.TestCase):
         mock_story.add_outline.assert_called_once()
         mock_story.add_text.assert_called_once()
 
-    @patch("app.generate_image")
+    @patch("app.models.generate_image")
     def test_image_generation(self, mock_gen_image):
         """Test the image generation workflow."""
         # Setup mock return values
@@ -153,7 +154,6 @@ class TestAppIntegration(unittest.TestCase):
         # Create layout instance
         layout = Layout()
         layout.add_character_img = MagicMock()
-        layout.appendix = MagicMock()
 
         # Mock the main app code that generates images
         mock_openai = MagicMock()
@@ -166,15 +166,11 @@ class TestAppIntegration(unittest.TestCase):
             prompt, response = mock_gen_image(mock_openai, mock_llm, mock_story, i)
             layout.add_character_img(i, response["data"][0]["url"])
 
-            layout.appendix.write("Character image: ")
-            layout.appendix.write(prompt)
-            layout.appendix.code(response, language="json")
+            # No more appendix
 
         # Verify image generation happened for both characters
         self.assertEqual(mock_gen_image.call_count, 2)
         self.assertEqual(layout.add_character_img.call_count, 2)
-        self.assertEqual(layout.appendix.write.call_count, 4)  # 2 calls per character
-        self.assertEqual(layout.appendix.code.call_count, 2)  # 1 call per character
 
 
 if __name__ == "__main__":
