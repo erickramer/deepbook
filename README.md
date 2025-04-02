@@ -62,6 +62,35 @@ make run
 - `app/models.py`: Data models for story components
 - `app/prompts.py`: Templates for story generation
 - `app/contants.py`: Configuration settings
+- `tests/`: Test suite for the application
+
+## Testing
+
+The project includes a comprehensive test suite to ensure functionality and reliability:
+
+```bash
+# Run all tests
+make test
+
+# Run tests with coverage report
+make coverage
+
+# Run linting checks
+make lint
+
+# Auto-format code
+make format
+```
+
+See the [tests/README.md](tests/README.md) file for more information about the test suite.
+
+### Continuous Integration
+
+This project uses GitHub Actions for continuous integration. The following checks are run on every push and pull request:
+
+- Code linting with flake8, black, and isort
+- Unit tests with pytest
+- Test coverage reporting with pytest-cov and CodeCov
 
 ## Notes
 

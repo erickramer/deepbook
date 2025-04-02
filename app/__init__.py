@@ -7,8 +7,8 @@ This module provides the Streamlit interface and coordinates the story generatio
 import streamlit as st 
 import openai
 from langchain.llms import OpenAI
-from models import Story, CharacterModel, generate_image
-from contants import MODEL_NAME, TEMPERATURE
+from app.models import Story, CharacterModel, generate_image
+from app.contants import MODEL_NAME, TEMPERATURE
 
 
 class Layout:

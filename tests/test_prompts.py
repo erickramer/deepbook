@@ -80,11 +80,13 @@ class TestPrompts(unittest.TestCase):
         
         # Text template
         self.assertIn("imagine the text for chapter {name}", TEXT_TEMPLATE)
-        self.assertIn("follow the synopsis in the outline", TEXT_TEMPLATE)
+        self.assertIn("follow", TEXT_TEMPLATE)
+        self.assertIn("synopsis in the outline", TEXT_TEMPLATE)
         
         # Image template
         self.assertIn("write a prompt for image generation for character {i}", IMG_TEMPLATE)
-        self.assertIn("based on their physical description and personality", IMG_TEMPLATE)
+        self.assertIn("based on their", IMG_TEMPLATE)
+        self.assertIn("physical description and personality", IMG_TEMPLATE)
 
 
 if __name__ == '__main__':

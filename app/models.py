@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from langchain.prompts import PromptTemplate
 from langchain.output_parsers import PydanticOutputParser
 from typing import List, Optional
-from prompts import TEMPLATE, TEXT_TEMPLATE, IMG_TEMPLATE
+from app.prompts import TEMPLATE, TEXT_TEMPLATE, IMG_TEMPLATE
 
 class Model(BaseModel):
     """Base model class that all other models inherit from."""
