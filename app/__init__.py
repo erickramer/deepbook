@@ -33,10 +33,6 @@ class Layout:
         self.character = None
         self.character_img_cols = []
 
-        self.characters.write("## Starring")
-        self.outline.write("## Contents")
-        self.text.write("## Story")
-
     def add_metadata(self, story):
         """Add book title and author to the header section.
 
@@ -69,6 +65,9 @@ class Layout:
         Args:
             story: The Story object containing characters
         """
+        # Add the section header
+        self.characters.write("## Starring")
+
         self.character = [self.characters.container() for _ in story.characters.characters]
         for i, character in enumerate(story.characters.characters):
             self.add_character(i, character)
@@ -81,6 +80,9 @@ class Layout:
         Args:
             story: The Story object containing the outline
         """
+        # Add the section header
+        self.outline.write("## Contents")
+
         for outline in story.outline.outlines:
             self.outline.write(f"**Chapter {outline.chapter}**: {outline.title}")
 
@@ -92,6 +94,9 @@ class Layout:
         Args:
             story: The Story object containing the text
         """
+        # Add the section header
+        self.text.write("## Story")
+
         for i, chapter in enumerate(story.text.chapters):
             self.text.write(f"### Chapter {chapter.chapter}: {story.outline.outlines[i].title}")
             self.text.write(chapter.text)
