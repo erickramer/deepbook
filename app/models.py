@@ -5,7 +5,8 @@ This module defines the structure of the story components using Pydantic models.
 Each model represents a different part of the children's book.
 """
 
-from typing import List, Optional
+import asyncio
+from typing import Any, Dict, List, Optional, Tuple
 
 from langchain.output_parsers import PydanticOutputParser
 from langchain.prompts import PromptTemplate
@@ -130,6 +131,18 @@ class Story(Model):
         self.metadata = self._run_llm(llm, MetaDataModel, "metadata")
         return self
 
+    async def add_metadata_async(self, llm):
+        """Generate metadata for the story asynchronously.
+
+        Args:
+            llm: The language model to use for generation
+
+        Returns:
+            Self for method chaining
+        """
+        self.metadata = await asyncio.to_thread(self._run_llm, llm, MetaDataModel, "metadata")
+        return self
+
     def add_characters(self, llm):
         """Generate character definitions for the story.
 
@@ -142,6 +155,18 @@ class Story(Model):
         self.characters = self._run_llm(llm, CharactersModel, "characters")
         return self
 
+    async def add_characters_async(self, llm):
+        """Generate character definitions for the story asynchronously.
+
+        Args:
+            llm: The language model to use for generation
+
+        Returns:
+            Self for method chaining
+        """
+        self.characters = await asyncio.to_thread(self._run_llm, llm, CharactersModel, "characters")
+        return self
+
     def add_outline(self, llm):
         """Generate a story outline including chapter structure.
 
@@ -152,6 +177,18 @@ class Story(Model):
             Self for method chaining
         """
         self.outline = self._run_llm(llm, BookOutlineModel, "outline")
+        return self
+
+    async def add_outline_async(self, llm):
+        """Generate a story outline asynchronously.
+
+        Args:
+            llm: The language model to use for generation
+
+        Returns:
+            Self for method chaining
+        """
+        self.outline = await asyncio.to_thread(self._run_llm, llm, BookOutlineModel, "outline")
         return self
 
     def add_text(self, llm):
@@ -174,9 +211,46 @@ class Story(Model):
 
         return self
 
+    async def add_text_async(self, llm):
+        """Generate the full text content for all chapters concurrently.
 
-def generate_image(openai, llm, story: Story, i: int):
-    """Generate a character illustration using OpenAI's image generation.
+        Generates text for all chapters at the same time for better performance.
+
+        Args:
+            llm: The language model to use for generation
+
+        Returns:
+            Self for method chaining
+        """
+        self.text = FullTextModel()
+
+        async def generate_chapter_text(outline):
+            # Currently there's no async version of LangChain's run, so we use
+            # asyncio.to_thread to run it in a separate thread without blocking
+            chapter_text = await asyncio.to_thread(
+                self._run_llm, llm, ChapterTextModel, outline.chapter, TEXT_TEMPLATE
+            )
+            return outline.chapter, chapter_text
+
+        # Create a task for each chapter
+        tasks = []
+        for outline in self.outline.outlines:
+            task = generate_chapter_text(outline)
+            tasks.append(task)
+
+        # Run all tasks concurrently
+        results = await asyncio.gather(*tasks)
+
+        # Sort results by chapter number and add to text
+        sorted_results = sorted(results, key=lambda x: x[0])
+        for _, chapter_text in sorted_results:
+            self.text.chapters.append(chapter_text)
+
+        return self
+
+
+async def generate_image_async(openai, llm, story: Story, i: int):
+    """Generate a character illustration using OpenAI's image generation (asynchronously).
 
     Uses a language model to create a descriptive prompt based on the character,
     then passes that prompt to OpenAI's image generation API.
@@ -188,7 +262,7 @@ def generate_image(openai, llm, story: Story, i: int):
         i: The index of the character to generate an image for
 
     Returns:
-        Tuple containing (generated prompt text, OpenAI image response)
+        Tuple containing (character index, generated prompt text, OpenAI image response)
     """
     prompt = PromptTemplate(
         template=IMG_TEMPLATE,
@@ -200,8 +274,56 @@ def generate_image(openai, llm, story: Story, i: int):
     ).to_string()
     res = llm(s)
 
-    response = openai.Image.create(
+    response = await openai.Image.acreate(
         prompt=f"A children's book illustration. {res}", n=1, size="512x512"
     )
 
-    return res, response
+    return i, res, response
+
+
+def generate_image(openai, llm, story: Story, i: int):
+    """Synchronous wrapper for generate_image_async for backward compatibility.
+
+    Args:
+        openai: The OpenAI client for making API calls
+        llm: The language model to use for prompt generation
+        story: The Story object containing character information
+        i: The index of the character to generate an image for
+
+    Returns:
+        Tuple containing (generated prompt text, OpenAI image response)
+    """
+    loop = asyncio.get_event_loop()
+    try:
+        _, prompt, response = loop.run_until_complete(generate_image_async(openai, llm, story, i))
+    except RuntimeError:
+        # If there's no event loop in the current thread, create and use a new one
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        _, prompt, response = loop.run_until_complete(generate_image_async(openai, llm, story, i))
+        loop.close()
+    return prompt, response
+
+
+async def generate_all_character_images(
+    openai, llm, story: Story
+) -> List[Tuple[int, str, Dict[str, Any]]]:
+    """Generate illustrations for all characters concurrently.
+
+    Args:
+        openai: The OpenAI client for making API calls
+        llm: The language model to use for prompt generation
+        story: The Story object containing character information
+
+    Returns:
+        List of tuples containing (character index, generated prompt text, OpenAI image response)
+    """
+    tasks = []
+    for i, _ in enumerate(story.characters.characters):
+        task = generate_image_async(openai, llm, story, i)
+        tasks.append(task)
+
+    # Run all image generation tasks concurrently
+    results = await asyncio.gather(*tasks)
+
+    return results

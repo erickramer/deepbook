@@ -4,12 +4,14 @@ Main application module for DeepBook - a children's storybook generator.
 This module provides the Streamlit interface and coordinates the story generation process.
 """
 
+import asyncio
+
 import openai
 import streamlit as st
 from langchain.llms import OpenAI
 
 from app.contants import MODEL_NAME, TEMPERATURE
-from app.models import CharacterModel, Story, generate_image
+from app.models import CharacterModel, Story, generate_all_character_images
 
 
 class Layout:
@@ -134,27 +136,55 @@ def run_app():
             layout = Layout()
             story = Story(prompt=prompt)
 
-            # metadata
-            story.add_metadata(llm)
+            # metadata - generate asynchronously
+            with st.spinner("Generating story metadata..."):
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                await_story = loop.run_until_complete(story.add_metadata_async(llm))
+                loop.close()
+
             layout.add_metadata(story)
 
-            # characters
-            story.add_characters(llm)
-            layout.add_characters(story)
-            for i, _ in enumerate(story.characters.characters):
-                prompt, response = generate_image(openai, llm, story, i)
-                layout.add_character_img(i, response.data[0].url)
+            # characters - generate asynchronously
+            with st.spinner("Generating characters..."):
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                await_story = loop.run_until_complete(story.add_characters_async(llm))
+                loop.close()
 
+            layout.add_characters(story)
+
+            # Generate all character images concurrently
+            with st.spinner("Generating character illustrations..."):
+                # Run the async function inside an asyncio event loop
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                images = loop.run_until_complete(generate_all_character_images(openai, llm, story))
+                loop.close()
+
+            # Display all generated images
+            for i, prompt, response in images:
+                layout.add_character_img(i, response["data"][0]["url"])
                 layout.appendix.write("Character image: ")
                 layout.appendix.write(prompt)
                 layout.appendix.code(response, language="json")
 
-            # outline
-            story.add_outline(llm)
+            # outline - generate asynchronously
+            with st.spinner("Generating story outline..."):
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                await_story = loop.run_until_complete(story.add_outline_async(llm))
+                loop.close()
+
             layout.add_outline(story)
 
-            # text
-            story.add_text(llm)
+            # text - generate all chapters in parallel
+            with st.spinner("Generating story text..."):
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                await_story = loop.run_until_complete(story.add_text_async(llm))
+                loop.close()
+
             layout.add_text(story)
 
 
