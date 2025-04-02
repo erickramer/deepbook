@@ -1,0 +1,44 @@
+# Virtual Environment
+venv/
+env/
+.env/
+test_venv/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+
+# OpenAI API keys
+api_keys.txt
+
+# Streamlit
+.streamlit/
+
+# Generated story content
+*.json
+
+# Test and coverage files
+.coverage
+coverage.xml
+htmlcov/
+.pre-commit-cache/
