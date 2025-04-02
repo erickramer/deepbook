@@ -4,12 +4,14 @@ Main application module for DeepBook - a children's storybook generator.
 This module provides the Streamlit interface and coordinates the story generation process.
 """
 
+import asyncio
+
 import openai
 import streamlit as st
 from langchain.llms import OpenAI
 
 from app.contants import MODEL_NAME, TEMPERATURE
-from app.models import CharacterModel, Story, generate_image
+from app.models import CharacterModel, Story, generate_all_character_images
 
 
 class Layout:
@@ -21,28 +23,15 @@ class Layout:
 
     def __init__(self):
         """Initialize the layout containers and section headers."""
+        # Status container first, so it appears at the top
+        self.status = st.container()  # Container for spinner, above the title
         self.header = st.container()
         self.characters = st.container()
         self.outline = st.container()
         self.text = st.container()
-        self.appendix = st.container()
 
         self.character = None
         self.character_img_cols = []
-
-        self.characters.write("## Starring")
-        self.outline.write("## Contents")
-        self.text.write("## Story")
-        self.appendix.write("## Logs")
-
-    def add_log(self, story):
-        """Add JSON representation of the story to the logs section.
-
-        Args:
-            story: The Story object to display in the logs
-        """
-        self.appendix.write("\n")
-        self.appendix.code(story.json(indent=4), language="json")
 
     def add_metadata(self, story):
         """Add book title and author to the header section.
@@ -52,7 +41,6 @@ class Layout:
         """
         self.header.write(f"# {story.metadata.title}")
         self.header.write(f"By {story.metadata.author}")
-        self.add_log(story)
 
     def add_character(self, i, character: CharacterModel):
         """Add a single character to the characters section.
@@ -77,11 +65,12 @@ class Layout:
         Args:
             story: The Story object containing characters
         """
+        # Add the section header
+        self.characters.write("## Starring")
+
         self.character = [self.characters.container() for _ in story.characters.characters]
         for i, character in enumerate(story.characters.characters):
             self.add_character(i, character)
-
-        self.add_log(story)
 
     def add_outline(self, story: Story):
         """Add chapter outlines to the contents section.
@@ -91,9 +80,14 @@ class Layout:
         Args:
             story: The Story object containing the outline
         """
+        # Add the section header
+        self.outline.write("## Contents")
+
         for outline in story.outline.outlines:
-            self.outline.write(f"**Chapter {outline.chapter}**: {outline.title}")
-        self.add_log(story)
+            # Create a link to the corresponding chapter using an anchor
+            self.outline.markdown(
+                f"**Chapter {outline.chapter}**: [{outline.title}](#chapter-{outline.chapter}-{outline.title.lower().replace(' ', '-')})"
+            )
 
     def add_text(self, story: Story):
         """Add full text content for each chapter to the story section.
@@ -103,10 +97,18 @@ class Layout:
         Args:
             story: The Story object containing the text
         """
+        # Add the section header
+        self.text.write("## Story")
+
         for i, chapter in enumerate(story.text.chapters):
-            self.text.write(f"### Chapter {chapter.chapter}: {story.outline.outlines[i].title}")
+            # Create chapter heading with an ID that matches the link in the contents
+            outline = story.outline.outlines[i]
+            chapter_id = f"chapter-{outline.chapter}-{outline.title.lower().replace(' ', '-')}"
+            self.text.markdown(
+                f'<h3 id="{chapter_id}">Chapter {chapter.chapter}: {outline.title}</h3>',
+                unsafe_allow_html=True,
+            )
             self.text.write(chapter.text)
-            self.add_log(story)
 
     def add_character_img(self, i, url):
         """Add a character illustration to the characters section.
@@ -121,41 +123,113 @@ class Layout:
 def run_app():
     """Main entry point for the DeepBook application."""
     st.set_page_config(page_title="📚 Childrens' storybook generator")
-    st.title("📚 Childrens' storybook generator")
-    key = st.text_input(label="Enter your OpenAI API key")
+
+    # Create a container for the title so we can remove it later
+    title_container = st.empty()
+    title_container.title("📚 Childrens' storybook generator")
+
+    # Create a container for the API key input so we can hide it later
+    key_container = st.empty()
+    key = key_container.text_input(label="Enter your OpenAI API key")
     if key:
+        # Hide the API key input after submission
+        key_container.empty()
+
         openai.api_key = key
         llm = OpenAI(
             model_name=MODEL_NAME, temperature=TEMPERATURE, openai_api_key=key, max_tokens=2048
         )
 
-        prompt = st.text_input(label="Enter a prompt for a childrens' book")
+        # Create a container for the prompt input that we can hide later
+        prompt_container = st.empty()
+
+        # Get the prompt from the user
+        prompt = prompt_container.text_input(label="Enter a prompt for a childrens' book")
         if prompt:
+            # Clear the prompt container to hide the input field
+            prompt_container.empty()
+
+            # Remove the main title at the top
+            title_container.empty()
+            # Let's create the layout only after we have a prompt
             layout = Layout()
             story = Story(prompt=prompt)
 
-            # metadata
-            story.add_metadata(llm)
+            # metadata - generate asynchronously
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            await_story = loop.run_until_complete(story.add_metadata_async(llm))
+            loop.close()
+
+            # Add metadata first so the title is displayed
             layout.add_metadata(story)
 
-            # characters
-            story.add_characters(llm)
+            # characters - generate asynchronously
+            with layout.status:
+                with st.spinner("Generating characters..."):
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    await_story = loop.run_until_complete(story.add_characters_async(llm))
+                    loop.close()
+
             layout.add_characters(story)
-            for i, _ in enumerate(story.characters.characters):
-                prompt, response = generate_image(openai, llm, story, i)
-                layout.add_character_img(i, response.data[0].url)
 
-                layout.appendix.write("Character image: ")
-                layout.appendix.write(prompt)
-                layout.appendix.code(response, language="json")
+            # Start image generation in a separate thread
+            import threading
 
-            # outline
-            story.add_outline(llm)
+            # Create a placeholder for the image results
+            image_results = []
+
+            def generate_images_thread():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                images = loop.run_until_complete(generate_all_character_images(openai, llm, story))
+                loop.close()
+                # Store results for later use
+                image_results.extend(images)
+
+            # Start the thread for image generation
+            image_thread = threading.Thread(target=generate_images_thread)
+            image_thread.start()
+
+            # Create an empty placeholder for status messages
+            image_status = layout.status.empty()
+
+            # outline - generate asynchronously
+            with layout.status:
+                with st.spinner("Generating story outline..."):
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    await_story = loop.run_until_complete(story.add_outline_async(llm))
+                    loop.close()
+
             layout.add_outline(story)
 
-            # text
-            story.add_text(llm)
+            # text - generate all chapters in parallel
+            with layout.status:
+                with st.spinner("Generating story text..."):
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    await_story = loop.run_until_complete(story.add_text_async(llm))
+                    loop.close()
+
             layout.add_text(story)
+
+            # Now wait for image generation to complete if it hasn't already
+            with layout.status:
+                with st.spinner("Finishing character illustrations..."):
+                    image_thread.join()  # Wait for the thread to finish
+
+            # Clear the image status message
+            image_status.empty()
+
+            # Display all generated images
+            for i, prompt, response in image_results:
+                layout.add_character_img(i, response["data"][0]["url"])
+
+            # Show completion message
+            with layout.status:
+                st.success("✅ Story generation complete!")
 
 
 if __name__ == "__main__":

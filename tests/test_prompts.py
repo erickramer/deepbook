@@ -73,9 +73,10 @@ class TestPrompts(unittest.TestCase):
         self.assertIn("synopsis in the outline", TEXT_TEMPLATE)
 
         # Image template
-        self.assertIn("write a prompt for image generation for character {i}", IMG_TEMPLATE)
-        self.assertIn("based on their", IMG_TEMPLATE)
-        self.assertIn("physical description and personality", IMG_TEMPLATE)
+        self.assertIn("detailed visual description for character {i}", IMG_TEMPLATE)
+        self.assertIn("Their physical appearance", IMG_TEMPLATE)
+        self.assertIn("Their clothing and accessories", IMG_TEMPLATE)
+        self.assertIn("mood and atmosphere", IMG_TEMPLATE)
 
 
 if __name__ == "__main__":
