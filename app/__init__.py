@@ -183,9 +183,8 @@ def run_app():
             image_thread = threading.Thread(target=generate_images_thread)
             image_thread.start()
 
-            # Show a status message but don't block
+            # Create an empty placeholder for status messages
             image_status = layout.status.empty()
-            image_status.info("Generating character illustrations in the background...")
 
             # outline - generate asynchronously
             with layout.status:
