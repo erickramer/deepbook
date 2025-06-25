@@ -20,6 +20,8 @@ install-dev: venv
 
 venv:
 	python -m venv $(VENV)
+	$(VENV)/bin/python -m ensurepip --upgrade
+	$(VENV)/bin/python -m pip install --upgrade pip
 	$(INSTALLER) requirements.txt
 	$(INSTALLER) requirements-dev.txt
 
